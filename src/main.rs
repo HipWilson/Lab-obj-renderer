@@ -3,13 +3,14 @@ mod obj;
 mod triangle;
 
 use framebuffer::Framebuffer;
-use obj::{Model, Vec3};
+use obj::Model;
 use raylib::prelude::*;
 use triangle::{triangle, Vec2};
 
 const WIDTH: i32 = 800;
 const HEIGHT: i32 = 600;
 const BACKGROUND: Color = Color::new(18, 18, 28, 255);
+const LINE_COLOR: Color = Color::new(90, 190, 255, 255);
 const MARGIN: f32 = 0.8;
 
 /// Escala y traslada (x, y) para que el modelo quede centrado y completamente visible.
@@ -36,32 +37,12 @@ fn fit_to_screen(model: &Model) -> Vec<Vec2> {
         .collect()
 }
 
-fn shade(tri: &[Vec3; 3]) -> Color {
-    let u = [tri[1][0] - tri[0][0], tri[1][1] - tri[0][1], tri[1][2] - tri[0][2]];
-    let v = [tri[2][0] - tri[0][0], tri[2][1] - tri[0][1], tri[2][2] - tri[0][2]];
-    let n = [
-        u[1] * v[2] - u[2] * v[1],
-        u[2] * v[0] - u[0] * v[2],
-        u[0] * v[1] - u[1] * v[0],
-    ];
-    let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt().max(f32::EPSILON);
-    let light = (n[2] / len).abs() * 0.75 + 0.25;
-    Color::new((90.0 * light) as u8, (190.0 * light) as u8, (255.0 * light) as u8, 255)
-}
-
 fn render(fb: &mut Framebuffer, model: &Model, screen: &[Vec2]) {
     fb.clear(BACKGROUND);
+    fb.set_color(LINE_COLOR);
 
-    // Los triángulos más lejanos se dibujan primero para que no se tapen mal entre sí
-    let mut faces: Vec<usize> = (0..model.indices.len() / 3).collect();
-    let depth = |f: usize| -> f32 { (0..3).map(|k| model.vertices[model.indices[f * 3 + k]][2]).sum() };
-    faces.sort_by(|&a, &b| depth(a).partial_cmp(&depth(b)).unwrap());
-
-    for f in faces {
-        let idx = [model.indices[f * 3], model.indices[f * 3 + 1], model.indices[f * 3 + 2]];
-        let tri3 = [model.vertices[idx[0]], model.vertices[idx[1]], model.vertices[idx[2]]];
-        fb.set_color(shade(&tri3));
-        triangle(fb, screen[idx[0]], screen[idx[1]], screen[idx[2]]);
+    for t in model.indices.chunks_exact(3) {
+        triangle(fb, screen[t[0]], screen[t[1]], screen[t[2]]);
     }
 }
 
